@@ -1,0 +1,54 @@
+version: '3'
+services:
+  db:
+    image: postgres
+    ports:
+        - "5432:5432"
+    environment:
+      - POSTGRES_USER=user
+      - POSTGRES_PASSWORD=pass
+      
+
+
+  redis:
+    image: redis
+    ports:
+       - "6379:6379"
+    volumes:
+      - ./tmp/db:/var/lib/redis/data
+
+
+  web:
+    volumes:
+      - .:/app
+    ports:
+      - '5000:5000'
+    depends_on:
+       - 'db'
+       - 'redis'
+
+    build: .
+
+    environment:
+      - DATABASE_URL=postgres://user:pass@db:5432/solocoin_development
+ 
+    command: bundle exec rails db:setup db:seed && bundle exec rails development_tasks:seed_dev_data && bundle exec foreman start
+    restart: always
+
+
+  sidekiq:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    depends_on:
+      - 'db'
+      - 'redis'
+      - 'web'
+    build: .
+    volumes:
+      - '.:/app'
+    command: bundle exec sidekiq
+
+
+
+  
